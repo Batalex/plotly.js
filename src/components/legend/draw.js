@@ -585,17 +585,20 @@ function computeLegendDimensions(gd, groups, traces) {
             opts._width = Math.max(maxRowWidth, groupOffsetX) + bw;
             opts._height = groupOffsetY + maxGroupHeightInRow + endPad;
         } else {
-            var oneRowLegend = (combinedItemWidth + bw2 + (traces.size() - 1) * itemGap) < opts._maxWidth;
+            var nTraces = traces.size();
+            var oneRowLegend = (combinedItemWidth + bw2 + (nTraces - 1) * itemGap) < opts._maxWidth;
 
             var maxItemHeightInRow = 0;
             var offsetX = 0;
             var offsetY = 0;
+            var rowWidth = 0;
             traces.each(function(d) {
                 var h = d[0].height;
-                var next = (oneRowLegend ? textGap + d[0].width : maxItemWidth) + itemGap;
+                var w = textGap + d[0].width;
+                var next = (oneRowLegend ? w : maxItemWidth) + itemGap;
 
                 if((next + bw + offsetX) > opts._maxWidth) {
-                    maxRowWidth = Math.max(maxRowWidth, offsetX);
+                    maxRowWidth = Math.max(maxRowWidth, rowWidth);
                     offsetX = 0;
                     offsetY += maxItemHeightInRow;
                     opts._height += maxItemHeightInRow;
@@ -604,6 +607,7 @@ function computeLegendDimensions(gd, groups, traces) {
 
                 Drawing.setTranslate(this, bw + offsetX, itemGap + bw + h / 2 + offsetY);
 
+                rowWidth = offsetX + w + itemGap;
                 offsetX += next;
                 maxItemHeightInRow = Math.max(maxItemHeightInRow, h);
             });
@@ -613,7 +617,7 @@ function computeLegendDimensions(gd, groups, traces) {
                 opts._height = maxItemHeightInRow + endPad;
                 toggleRectWidth = null;
             } else {
-                opts._width = Math.max(maxRowWidth, offsetX) + bw;
+                opts._width = Math.max(maxRowWidth, rowWidth) + bw2;
                 opts._height += maxItemHeightInRow + endPad;
                 toggleRectWidth = maxItemWidth;
             }
