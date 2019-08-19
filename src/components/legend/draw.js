@@ -550,6 +550,7 @@ function computeLegendDimensions(gd, groups, traces) {
             combinedItemWidth += w;
         });
 
+        toggleRectWidth = null;
         var maxRowWidth = 0;
 
         if(isGrouped) {
@@ -581,7 +582,6 @@ function computeLegendDimensions(gd, groups, traces) {
                 groupOffsetX += next;
             });
 
-            toggleRectWidth = maxItemWidth;
             opts._width = Math.max(maxRowWidth, groupOffsetX) + bw;
             opts._height = groupOffsetY + maxGroupHeightInRow + endPad;
         } else {
@@ -615,11 +615,9 @@ function computeLegendDimensions(gd, groups, traces) {
             if(oneRowLegend) {
                 opts._width = offsetX + bw2;
                 opts._height = maxItemHeightInRow + endPad;
-                toggleRectWidth = null;
             } else {
                 opts._width = Math.max(maxRowWidth, rowWidth) + bw2;
                 opts._height += maxItemHeightInRow + endPad;
-                toggleRectWidth = maxItemWidth;
             }
         }
     }
