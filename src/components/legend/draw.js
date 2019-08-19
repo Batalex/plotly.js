@@ -550,55 +550,43 @@ function computeLegendDimensions(gd, groups, traces) {
             combinedItemWidth += w;
         });
 
+        var maxRowWidth = 0;
+
         if(isGrouped) {
-            var groupData = groups.data();
-            var i;
+            var maxGroupHeightInRow = 0;
+            var groupOffsetX = 0;
+            var groupOffsetY = 0;
+            groups.each(function() {
+                var maxWidthInGroup = 0;
+                var offsetY = 0;
+                d3.select(this).selectAll('g.traces').each(function(d) {
+                    var h = d[0].height;
+                    Drawing.setTranslate(this, 0, itemGap + bw + h / 2 + offsetY);
+                    offsetY += h;
+                    maxWidthInGroup = Math.max(maxWidthInGroup, textGap + d[0].width);
+                });
+                maxGroupHeightInRow = Math.max(maxGroupHeightInRow, offsetY);
 
-            var maxGroupHeight = 0;
-            for(i = 0; i < groupData.length; i++) {
-                var groupHeight = groupData[i].reduce(function(a, b) { return a + b[0].height; }, 0);
-                maxGroupHeight = Math.max(maxGroupHeight, groupHeight);
-            }
+                var next = maxWidthInGroup + itemGap;
 
-            var groupXOffsets = [opts._width];
-            var groupYOffsets = [];
-            var rowNum = 0;
-            for(i = 0; i < groupData.length; i++) {
-                if((opts._width + itemGap + maxItemWidth + bw) > opts._maxWidth) {
-                    groupXOffsets[groupXOffsets.length - 1] = groupXOffsets[0];
-                    opts._width = maxItemWidth + itemGap;
-                    rowNum++;
-                } else {
-                    opts._width += maxItemWidth + itemGap;
+                if((next + bw + groupOffsetX) > opts._maxWidth) {
+                    maxRowWidth = Math.max(maxRowWidth, groupOffsetX);
+                    groupOffsetX = 0;
+                    groupOffsetY += maxGroupHeightInRow + opts.tracegroupgap;
+                    maxGroupHeightInRow = offsetY;
                 }
 
-                groupXOffsets.push(opts._width);
-                groupYOffsets.push(rowNum * maxGroupHeight + (rowNum > 0 ? opts.tracegroupgap : 0));
-            }
+                Drawing.setTranslate(this, groupOffsetX, groupOffsetY);
 
-            groups.each(function(d, i) {
-                Drawing.setTranslate(this, groupXOffsets[i], groupYOffsets[i]);
+                groupOffsetX += next;
             });
 
-            groups.each(function() {
-                var group = d3.select(this);
-                var groupTraces = group.selectAll('g.traces');
-                var groupHeight = 0;
-
-                groupTraces.each(function(d) {
-                    var h = d[0].height;
-                    Drawing.setTranslate(this, 0, itemGap + bw + groupHeight + h / 2);
-                    groupHeight += h;
-                });
-            });
-
-            opts._height = groupYOffsets[groupYOffsets.length - 1] + maxGroupHeight + endPad;
-            opts._width = Math.max.apply(null, groupXOffsets) + maxItemWidth + textGap + bw2;
             toggleRectWidth = maxItemWidth;
+            opts._width = Math.max(maxRowWidth, groupOffsetX) + bw;
+            opts._height = groupOffsetY + maxGroupHeightInRow + endPad;
         } else {
             var oneRowLegend = (combinedItemWidth + bw2 + (traces.size() - 1) * itemGap) < opts._maxWidth;
 
-            var maxRowWidth = 0;
             var maxItemHeightInRow = 0;
             var offsetX = 0;
             var offsetY = 0;
