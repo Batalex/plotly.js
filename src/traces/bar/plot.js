@@ -49,7 +49,28 @@ function getXY(di, xa, ya, isHorizontal) {
     return isHorizontal ? [s, p] : [p, s];
 }
 
-function plot(gd, plotinfo, cdModule, traceLayer, opts) {
+function transition(selection, opts, makeOnCompleteCallback) {
+    if(hasTransition(opts)) {
+        var onComplete;
+        if(makeOnCompleteCallback) {
+            onComplete = makeOnCompleteCallback();
+        }
+        return selection
+          .transition()
+          .duration(opts.duration)
+          .ease(opts.easing)
+          .each('end', function() { onComplete && onComplete(); })
+          .each('interrupt', function() { onComplete && onComplete(); });
+    } else {
+        return selection;
+    }
+}
+
+function hasTransition(transitionOpts) {
+    return transitionOpts && transitionOpts.duration > 0;
+}
+
+function plot(gd, plotinfo, cdModule, traceLayer, opts, makeOnCompleteCallback) {
     var xa = plotinfo.xaxis;
     var ya = plotinfo.yaxis;
     var fullLayout = gd._fullLayout;
@@ -176,12 +197,13 @@ function plot(gd, plotinfo, cdModule, traceLayer, opts) {
                 y1 = fixpx(y1, y0);
             }
 
-            Lib.ensureSingle(bar, 'path')
+            transition(Lib.ensureSingle(bar, 'path'), opts, makeOnCompleteCallback)
                 .style('vector-effect', 'non-scaling-stroke')
-                .attr('d', isBlank ? 'M0,0Z' : 'M' + x0 + ',' + y0 + 'V' + y1 + 'H' + x1 + 'V' + y0 + 'Z')
+                .attr('display', function() { return isBlank ? 'none' : 'visible';})
+                .attr('d', 'M' + x0 + ',' + y0 + 'V' + y1 + 'H' + x1 + 'V' + y0 + 'Z')
                 .call(Drawing.setClipUrl, plotinfo.layerClipId, gd);
 
-            appendBarText(gd, plotinfo, bar, cd, i, x0, x1, y0, y1, opts);
+            appendBarText(gd, plotinfo, bar, cd, i, x0, x1, y0, y1, opts, makeOnCompleteCallback);
 
             if(plotinfo.layerClipId) {
                 Drawing.hideOutsideRangePoint(di, bar.select('text'), xa, ya, trace.xcalendar, trace.ycalendar);
@@ -198,7 +220,7 @@ function plot(gd, plotinfo, cdModule, traceLayer, opts) {
     Registry.getComponentMethod('errorbars', 'plot')(gd, bartraces, plotinfo);
 }
 
-function appendBarText(gd, plotinfo, bar, calcTrace, i, x0, x1, y0, y1, opts) {
+function appendBarText(gd, plotinfo, bar, calcTrace, i, x0, x1, y0, y1, opts, makeOnCompleteCallback) {
     var xa = plotinfo.xaxis;
     var ya = plotinfo.yaxis;
 
@@ -210,7 +232,7 @@ function appendBarText(gd, plotinfo, bar, calcTrace, i, x0, x1, y0, y1, opts) {
             .text(text)
             .attr({
                 'class': 'bartext bartext-' + textPosition,
-                transform: '',
+                // transform: '',
                 'text-anchor': 'middle',
                 // prohibit tex interpretation until we can handle
                 // tex and regular text together
@@ -358,7 +380,7 @@ function appendBarText(gd, plotinfo, bar, calcTrace, i, x0, x1, y0, y1, opts) {
         }));
     }
 
-    textSelection.attr('transform', transform);
+    transition(textSelection, opts, makeOnCompleteCallback).attr('transform', transform);
 }
 
 function getRotateFromAngle(angle) {
