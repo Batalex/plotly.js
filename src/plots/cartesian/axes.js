@@ -1899,6 +1899,10 @@ axes.drawOne = function(gd, ax, opts) {
             }
         }
 
+
+        // TODO move to lsInner
+        //      or initInteractions (aka graph_interact.js)
+        //
         /*
          * for spikelines: what's the full domain of positions in the
          * opposite direction that are associated with this axis?
