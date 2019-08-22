@@ -1808,11 +1808,12 @@ axes.drawOne = function(gd, ax, opts) {
         var labelLength = 0;
         var pad = {x: 2, y: 10}[axLetter];
         var sgn = tickSigns[2] * (ax.ticks === 'inside' ? -1 : 1);
+        var bboxKey = {x: 'height', y: 'width'}[axLetter];
 
         // TODO missing 'ax.ticklen` part when tickson:'labels'
 
         seq.push(function() {
-            labelLength += getLabelLevelSpan(ax, axId + 'tick') + pad;
+            labelLength += getLabelLevelBbox(ax, axId + 'tick')[bboxKey] + pad;
             labelLength += ax._tickAngles[axId + 'tick'] ? ax.tickfont.size * LINE_SPACING : 0;
 
             return axes.drawLabels(gd, ax, {
@@ -1827,7 +1828,7 @@ axes.drawOne = function(gd, ax, opts) {
         });
 
         seq.push(function() {
-            labelLength += getLabelLevelSpan(ax, axId + 'tick2');
+            labelLength += getLabelLevelBbox(ax, axId + 'tick2')[bboxKey];
             ax._labelLength = labelLength;
 
             return drawDividers(gd, ax, {
@@ -1845,60 +1846,58 @@ axes.drawOne = function(gd, ax, opts) {
     }
 
     function calcBoundingBox() {
-        if(ax.showticklabels) {
-            var gdBB = gd.getBoundingClientRect();
-            var bBox = mainAxLayer.node().getBoundingClientRect();
+        var bbox = ax._boundingBox = {};
+        var llbbox = ax._selections[axId + 'tick'].size() ? getLabelLevelBbox(ax, axId + 'tick') : false;
+        var insideTickLen = ax.ticks === 'inside' ? ax.ticklen : 0;
 
-            /*
-             * the way we're going to use this, the positioning that matters
-             * is relative to the origin of gd. This is important particularly
-             * if gd is scrollable, and may have been scrolled between the time
-             * we calculate this and the time we use it
-             */
+        if(axLetter === 'x') {
+            if(ax.side === 'bottom') {
+                bbox.top = mainLinePosition - insideTickLen;
 
-            ax._boundingBox = {
-                width: bBox.width,
-                height: bBox.height,
-                left: bBox.left - gdBB.left,
-                right: bBox.right - gdBB.left,
-                top: bBox.top - gdBB.top,
-                bottom: bBox.bottom - gdBB.top
-            };
-        } else {
-            var gs = fullLayout._size;
-            var pos;
-
-            // set dummy bbox for ticklabel-less axes
-
-            if(axLetter === 'x') {
-                pos = ax.anchor === 'free' ?
-                    gs.t + gs.h * (1 - ax.position) :
-                    gs.t + gs.h * (1 - ax._anchorAxis.domain[{bottom: 0, top: 1}[ax.side]]);
-
-                ax._boundingBox = {
-                    top: pos,
-                    bottom: pos,
-                    left: ax._offset,
-                    right: ax._offset + ax._length,
-                    width: ax._length,
-                    height: 0
-                };
+                bbox.bottom = mainLinePosition;
+                if(ax.type === 'multicategory') bbox.bottom += ax._labelLength;
+                else if(llbbox) bbox.bottom = Math.max(bbox.bottom, llbbox.bottom);
+                else if(ax.ticks === 'outside') bbox.bottom += ax.ticklen;
             } else {
-                pos = ax.anchor === 'free' ?
-                    gs.l + gs.w * ax.position :
-                    gs.l + gs.w * ax._anchorAxis.domain[{left: 0, right: 1}[ax.side]];
+                bbox.top = mainLinePosition;
+                if(ax.type === 'multicategory') bbox.top -= ax._labelLength;
+                else if(llbbox) bbox.top = Math.min(bbox.top, llbbox.top);
+                else if(ax.ticks === 'outside') bbox.top -= ax.ticklen;
 
-                ax._boundingBox = {
-                    left: pos,
-                    right: pos,
-                    bottom: ax._offset + ax._length,
-                    top: ax._offset,
-                    height: ax._length,
-                    width: 0
-                };
+                bbox.bottom = mainLinePosition + insideTickLen;
             }
+
+            bbox.left = ax._offset;
+            if(llbbox) bbox.left = Math.min(bbox.left, llbbox.left);
+
+            bbox.right = ax._offset + ax._length;
+            if(llbbox) bbox.right = Math.max(bbox.right, llbbox.right);
+        } else {
+            if(ax.side === 'left') {
+                bbox.left = mainLinePosition;
+                if(ax.type === 'multicategory') bbox.left -= ax._labelLength;
+                else if(llbbox) bbox.left = Math.min(bbox.left, llbbox.left);
+                else if(ax.ticks === 'outside') bbox.left -= ax.ticklen;
+
+                bbox.right = mainLinePosition + insideTickLen;
+            } else {
+                bbox.left = mainLinePosition - insideTickLen;
+
+                bbox.right = mainLinePosition;
+                if(ax.type === 'multicategory') bbox.right += ax._labelLength;
+                else if(llbbox) bbox.right = Math.max(bbox.right, llbbox.right);
+                else if(ax.ticks === 'outside') bbox.right += ax.ticklen;
+            }
+
+            bbox.top = ax._offset;
+            if(llbbox) bbox.top = Math.min(bbox.top, llbbox.top);
+
+            bbox.bottom = ax._offset + ax._length;
+            if(llbbox) bbox.bottom = Math.max(bbox.bottom, llbbox.bottom);
         }
 
+        bbox.height = bbox.bottom - bbox.top;
+        bbox.width = bbox.right - bbox.left;
 
         // TODO move to lsInner
         //      or initInteractions (aka graph_interact.js)
@@ -2096,27 +2095,38 @@ function getDividerVals(ax, vals) {
     return out;
 }
 
-function getLabelLevelSpan(ax, cls) {
-    var axLetter = ax._id.charAt(0);
-    var angle = ax._tickAngles[cls] || 0;
-    var rad = Lib.deg2rad(angle);
-    var sinA = Math.sin(rad);
-    var cosA = Math.cos(rad);
-    var maxX = 0;
-    var maxY = 0;
-
-    // N.B. Drawing.bBox does not take into account rotate transforms
+function getLabelLevelBbox(ax, cls) {
+    var top = Infinity;
+    var bottom = -Infinity;
+    var left = Infinity;
+    var right = -Infinity;
 
     ax._selections[cls].each(function() {
         var thisLabel = selectTickLabel(this);
-        var bb = Drawing.bBox(thisLabel.node());
-        var w = bb.width;
-        var h = bb.height;
-        maxX = Math.max(maxX, cosA * w, sinA * h);
-        maxY = Math.max(maxY, sinA * w, cosA * h);
+        // use parent node <g.(x|y)tick>, to make Drawing.bBox
+        // retrieve bbox computed with transform info
+        var bb = Drawing.bBox(thisLabel.node().parentNode);
+        top = Math.min(top, bb.top);
+        bottom = Math.max(bottom, bb.bottom);
+        left = Math.min(left, bb.left);
+        right = Math.max(right, bb.right);
     });
 
-    return {x: maxY, y: maxX}[axLetter];
+    if(!ax._selections[cls].size()) {
+        top = 0;
+        bottom = 0;
+        left = 0;
+        right = 0;
+    }
+
+    return {
+        top: top,
+        bottom: bottom,
+        left: left,
+        right: right,
+        height: bottom - top,
+        width: right - left
+    };
 }
 
 /**
