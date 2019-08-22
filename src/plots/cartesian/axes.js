@@ -1636,6 +1636,16 @@ axes.draw = function(gd, arg, opts) {
  * @param {object} ax (full) axis object
  * @param {object} opts
  * - @param {boolean} skipTitle (set to true to skip axis title draw call)
+ *
+ * Fills in:
+ *
+ * - ax._vals:
+ * - ax._gridVals:
+ * - ax._boundingBox:
+ * - ax._counterSpan:
+ * - ax._selections:
+ * - ax._tickAngles:
+ * - ax._labelLength:
  */
 axes.drawOne = function(gd, ax, opts) {
     opts = opts || {};
