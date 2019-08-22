@@ -2008,6 +2008,8 @@ axes.drawOne = function(gd, ax, opts) {
                     push.t = tExtra;
                 }
             }
+
+            // TODO include mirror part !!
         }
 
         Plots.autoMargin(gd, axAutoMarginID(ax), push);
