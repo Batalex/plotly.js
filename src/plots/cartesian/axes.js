@@ -1899,6 +1899,25 @@ axes.drawOne = function(gd, ax, opts) {
         bbox.height = bbox.bottom - bbox.top;
         bbox.width = bbox.right - bbox.left;
 
+        // var gdBB = gd.getBoundingClientRect();
+        // var bBox = mainAxLayer.node().getBoundingClientRect();
+        // var boundingBox = {
+        //     width: bBox.width,
+        //     height: bBox.height,
+        //     left: bBox.left - gdBB.left,
+        //     right: bBox.right - gdBB.left,
+        //     top: bBox.top - gdBB.top,
+        //     bottom: bBox.bottom - gdBB.top
+        // };
+
+        // console.log(axId, '->', llbbox)
+        // console.log('top', boundingBox.top, bbox.top)
+        // console.log('bottom', boundingBox.bottom, bbox.bottom)
+        // console.log('left', boundingBox.left, bbox.left)
+        // console.log('right', boundingBox.right, bbox.right)
+        // console.log('height', boundingBox.height, bbox.height)
+        // console.log('width', boundingBox.width, bbox.width)
+
         // TODO move to lsInner
         //      or initInteractions (aka graph_interact.js)
         //
